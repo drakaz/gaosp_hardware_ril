@@ -106,6 +106,14 @@ int main(int argc, char **argv)
     char libPath[PROPERTY_VALUE_MAX];
     unsigned char hasLibArgs = 0;
 
+// drakaz : chmod dpram devices
+    chmod("/dev/dpram0",0777);
+    chmod("/dev/dpram1",0777);
+    chmod("/dev/dpramerr",0777);
+// drakaz : chmod multipdp device
+    chmod("/dev/multipdp",0777);
+    
+
     int i;
 
     for (i = 1; i < argc ;) {
