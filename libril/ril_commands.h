@@ -1,3 +1,4 @@
+
 /* //device/libs/telephony/ril_commands.h
 **
 ** Copyright 2006, The Android Open Source Project
@@ -41,7 +42,8 @@
     {RIL_REQUEST_DTMF, dispatchString, responseVoid},
     {RIL_REQUEST_SEND_SMS, dispatchStrings, responseSMS},
     {RIL_REQUEST_SEND_SMS_EXPECT_MORE, dispatchStrings, responseSMS},
-    {RIL_REQUEST_SETUP_DATA_CALL, dispatchStrings, responseStrings},
+//  {RIL_REQUEST_SETUP_DATA_CALL, dispatchStrings, responseStrings},
+    {RIL_REQUEST_SETUP_DATA_CALL, dispatchSetupDataCall, responseStrings},
     {RIL_REQUEST_SIM_IO, dispatchSIM_IO, responseSIM_IO},
     {RIL_REQUEST_SEND_USSD, dispatchString, responseVoid},
     {RIL_REQUEST_CANCEL_USSD, dispatchVoid, responseVoid},
