@@ -202,6 +202,7 @@ static void dispatchVoid (Parcel& p, RequestInfo *pRI);
 static void dispatchString (Parcel& p, RequestInfo *pRI);
 static void dispatchStrings (Parcel& p, RequestInfo *pRI);
 static void dispatchInts (Parcel& p, RequestInfo *pRI);
+static void dispatchSetupDataCall (Parcel& p, RequestInfo *pRI);
 static void dispatchDial (Parcel& p, RequestInfo *pRI);
 static void dispatchSIM_IO (Parcel& p, RequestInfo *pRI);
 static void dispatchCallForward(Parcel& p, RequestInfo *pRI);
