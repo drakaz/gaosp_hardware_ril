@@ -92,7 +92,7 @@ namespace android {
 #define PRINTBUF_SIZE 8096
 
 // Enable RILC log
-#define RILC_LOG 1
+#define RILC_LOG 0
 
 #if RILC_LOG
     #define startRequest           sprintf(printBuf, "(")
