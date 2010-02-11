@@ -244,7 +244,8 @@ int main(int argc, char **argv)
     }
 OpenLib:
 #endif
-    switchUser();
+// drakaz : keep rild in root, allowing libsec-ril to set dns
+//    switchUser();
 
     dlHandle = dlopen(rilLibPath, RTLD_NOW);
 
