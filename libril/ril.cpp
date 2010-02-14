@@ -2792,11 +2792,17 @@ RIL_onRequestComplete(RIL_Token t, RIL_Errno e, void *response, size_t responsel
         p.writeInt32 (RESPONSE_SOLICITED);
         p.writeInt32 (pRI->token);
         errorOffset = p.dataPosition();
-
+	
+	// Musty GET_NEIGHBORING_CELL_IDS patch
         if(pRI->pCI->requestNumber == RIL_REQUEST_GET_NEIGHBORING_CELL_IDS && e!=RIL_E_SUCCESS) {
 		e = RIL_E_SUCCESS;
 		p.writeInt32 (e);  //error code = success 
 		p.writeInt32 (0);  // cell count = 0
+	// Drakaz QUERY_AVAILABLE_NETWORKS patch
+	} else if(pRI->pCI->requestNumber == RIL_REQUEST_QUERY_AVAILABLE_NETWORKS && e!=RIL_E_SUCCESS) {
+		p.writeInt32 (RIL_E_SUCCESS);
+		ret = pRI->pCI->responseFunction(p, response, responselen);
+		
 	} else {
         	p.writeInt32 (e);
 
