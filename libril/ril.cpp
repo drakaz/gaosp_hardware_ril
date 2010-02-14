@@ -1947,13 +1947,23 @@ static void rilEventAddWakeup(struct ril_event *ev) {
     triggerEvLoop();
 }
 
+
+typedef enum {
+    SIM_ABSENT = 0,
+    SIM_NOT_READY = 1,
+    SIM_READY = 2,         /* SIM_READY means the radio state is RADIO_STATE_SIM_READY. */
+    SIM_PIN = 3,
+    SIM_PUK = 4,
+    SIM_NETWORK_PERSONALIZATION = 5
+} SIM_Status_I7500; 
+
 /**
  * Get the current card status.
  *
  * This must be freed using freeCardStatus.
  * @return: On success returns RIL_E_SUCCESS.
  */
-static int getCardStatus(RIL_CardStatus **pp_card_status, SIM_Status_15 sim_status) {
+static int getCardStatus(RIL_CardStatus **pp_card_status, SIM_Status_I7500 sim_status) {
     static RIL_AppStatus app_status_array[] = {
         /* SIM_ABSENT = 0 */
         { RIL_APPTYPE_UNKNOWN, RIL_APPSTATE_UNKNOWN, RIL_PERSOSUBSTATE_UNKNOWN,
@@ -2038,8 +2048,8 @@ static int responseSimStatus(Parcel &p, void *response, size_t responselen) {
 
     int sim_status = *((int *) response);
 
-    RIL_CardStatus *p_cur = NULL;//((RIL_CardStatus *) response);
-    getCardStatus(&p_cur, (SIM_Status_15)sim_status);
+    RIL_CardStatus *p_cur = NULL;
+    getCardStatus(&p_cur, (SIM_Status_I7500)sim_status);
 
     p.writeInt32(p_cur->card_state);
     p.writeInt32(p_cur->universal_pin_state);
