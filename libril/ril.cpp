@@ -202,7 +202,6 @@ static void dispatchVoid (Parcel& p, RequestInfo *pRI);
 static void dispatchString (Parcel& p, RequestInfo *pRI);
 static void dispatchStrings (Parcel& p, RequestInfo *pRI);
 static void dispatchInts (Parcel& p, RequestInfo *pRI);
-static void dispatchSetupDataCall (Parcel& p, RequestInfo *pRI);
 static void dispatchDial (Parcel& p, RequestInfo *pRI);
 static void dispatchSIM_IO (Parcel& p, RequestInfo *pRI);
 static void dispatchCallForward(Parcel& p, RequestInfo *pRI);
@@ -480,76 +479,6 @@ dispatchStrings (Parcel &p, RequestInfo *pRI) {
 LOGI("Sending command");
     s_callbacks.onRequest(pRI->pCI->requestNumber, pStrings, datalen, pRI);
 LOGI("After sending command");
-
-    if (pStrings != NULL) {
-        for (int i = 0 ; i < countStrings ; i++) {
-#ifdef MEMSET_FREED
-            memsetString (pStrings[i]);
-#endif
-            free(pStrings[i]);
-        }
-
-#ifdef MEMSET_FREED
-        memset(pStrings, 0, datalen);
-#endif
-    }
-
-    return;
-invalid:
-    invalidCommandBlock(pRI);
-    return;
-}
-
-// Musty data patch
-/**
- * Android 1.5 Compatible Data Call Setup
- */
-static void 
-dispatchSetupDataCall (Parcel &p, RequestInfo *pRI) {
-    int32_t countStrings;
-    status_t status;
-    size_t datalen;
-    char **pStrings; 
-    int i;
-	
-    status = p.readInt32 (&countStrings);
-
-    if (status != NO_ERROR) {
-        goto invalid;
-    }
-
-    startRequest;
-    if (countStrings == 0) {
-        // just some non-null pointer
-        pStrings = (char **)alloca(sizeof(char *));
-        datalen = 0;
-    } else if (((int)countStrings) == -1) {
-        pStrings = NULL;
-        datalen = 0;
-    } else {
-        datalen = sizeof(char *) * countStrings;
-
-        pStrings = (char **)alloca(datalen);
-
-        for (int i = 0 ; i < countStrings ; i++) {
-            pStrings[i] = strdupReadString(p);
-            appendPrintBuf("%s%s,", printBuf, pStrings[i]);
-        }
-    }
-    removeLastChar;
-    closeRequest;
-    printRequest(pRI->token, pRI->pCI->requestNumber);
-
-    for(i=0; i<3; i++) {
-    	if(pStrings[i] != NULL) {
-		free(pStrings[i]);
-		pStrings[i] = NULL;
-	}
-	if(pStrings[i+2] != NULL)
-		pStrings[i] = strdup(pStrings[i+2]);
-    }
-
-    s_callbacks.onRequest(pRI->pCI->requestNumber, pStrings, sizeof(char *) * 3/*datalen*/, pRI);
 
     if (pStrings != NULL) {
         for (int i = 0 ; i < countStrings ; i++) {
