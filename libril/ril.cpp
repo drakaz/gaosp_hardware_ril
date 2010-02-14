@@ -1947,6 +1947,81 @@ static void rilEventAddWakeup(struct ril_event *ev) {
     triggerEvLoop();
 }
 
+/**
+ * Get the current card status.
+ *
+ * This must be freed using freeCardStatus.
+ * @return: On success returns RIL_E_SUCCESS.
+ */
+static int getCardStatus(RIL_CardStatus **pp_card_status, SIM_Status_15 sim_status) {
+    static RIL_AppStatus app_status_array[] = {
+        /* SIM_ABSENT = 0 */
+        { RIL_APPTYPE_UNKNOWN, RIL_APPSTATE_UNKNOWN, RIL_PERSOSUBSTATE_UNKNOWN,
+          NULL, NULL, 0, RIL_PINSTATE_UNKNOWN, RIL_PINSTATE_UNKNOWN },
+        /* SIM_NOT_READY = 1 */
+        { RIL_APPTYPE_SIM, RIL_APPSTATE_DETECTED, RIL_PERSOSUBSTATE_UNKNOWN,
+          NULL, NULL, 0, RIL_PINSTATE_UNKNOWN, RIL_PINSTATE_UNKNOWN },
+        /* SIM_READY = 2 */
+        { RIL_APPTYPE_SIM, RIL_APPSTATE_READY, RIL_PERSOSUBSTATE_READY,
+          NULL, NULL, 0, RIL_PINSTATE_UNKNOWN, RIL_PINSTATE_UNKNOWN },
+        /* SIM_PIN = 3 */
+        { RIL_APPTYPE_SIM, RIL_APPSTATE_PIN, RIL_PERSOSUBSTATE_UNKNOWN,
+          NULL, NULL, 0, RIL_PINSTATE_ENABLED_NOT_VERIFIED, RIL_PINSTATE_UNKNOWN },
+        /* SIM_PUK = 4 */
+        { RIL_APPTYPE_SIM, RIL_APPSTATE_PUK, RIL_PERSOSUBSTATE_UNKNOWN,
+          NULL, NULL, 0, RIL_PINSTATE_ENABLED_BLOCKED, RIL_PINSTATE_UNKNOWN },
+        /* SIM_NETWORK_PERSONALIZATION = 5 */
+        { RIL_APPTYPE_SIM, RIL_APPSTATE_SUBSCRIPTION_PERSO, RIL_PERSOSUBSTATE_SIM_NETWORK,
+          NULL, NULL, 0, RIL_PINSTATE_ENABLED_NOT_VERIFIED, RIL_PINSTATE_UNKNOWN }
+    };
+    RIL_CardState card_state;
+    int num_apps;
+
+    if (sim_status == SIM_ABSENT) {
+        card_state = RIL_CARDSTATE_ABSENT;
+        num_apps = 0;
+    } else {
+        card_state = RIL_CARDSTATE_PRESENT;
+        num_apps = 1;
+    }
+
+    /* Allocate and initialize base card status. */
+    RIL_CardStatus *p_card_status = (RIL_CardStatus *)malloc(sizeof(RIL_CardStatus));
+    p_card_status->card_state = card_state;
+    p_card_status->universal_pin_state = RIL_PINSTATE_UNKNOWN;
+    p_card_status->gsm_umts_subscription_app_index = RIL_CARD_MAX_APPS;
+    p_card_status->cdma_subscription_app_index = RIL_CARD_MAX_APPS;
+    p_card_status->num_applications = num_apps;
+
+    /* Initialize application status. */
+    int i;
+    for (i = 0; i < RIL_CARD_MAX_APPS; i++) {
+        p_card_status->applications[i] = app_status_array[SIM_ABSENT];
+    }
+
+    /* Pickup the appropriate application status
+       that reflects sim_status for gsm. */
+    if (num_apps != 0) {
+        /* Only support one app, gsm. */
+        p_card_status->num_applications = 1;
+        p_card_status->gsm_umts_subscription_app_index = 0;
+
+        /* Get the correct app status. */
+        p_card_status->applications[0] = app_status_array[sim_status];
+    }
+
+    *pp_card_status = p_card_status;
+    return RIL_E_SUCCESS;
+}
+
+/**
+ * Free the card status returned by getCardStatus.
+ */
+static void freeCardStatus(RIL_CardStatus *p_card_status) {
+    free(p_card_status);
+}
+
+// Musty sim status patch
 static int responseSimStatus(Parcel &p, void *response, size_t responselen) {
     int i;
 
@@ -1961,79 +2036,44 @@ static int responseSimStatus(Parcel &p, void *response, size_t responselen) {
         return RIL_ERRNO_INVALID_RESPONSE;
     }
 
-//drakaz : SIM STATUS patch, which convert the response from the libsec-ril in Cupcake data format to an Eclair data format for GET_SIM_STATUS ril call
-    LOGI("Converting GET_SIM_STATUS response for I7500");
+    int sim_status = *((int *) response);
 
-    int *status = ((int *) response);
-    int real_status;
-    char *char_real_status;
-    
-    switch (*status) {
-        case 0:
-	    real_status = 0;
-	    char_real_status = strdup("uknown");
-            break;
-        case 1:
-	    real_status = 1;
-	    char_real_status = strdup("detected");
-            break;  
-        case 2:
-	    real_status = 5;
-	    char_real_status = strdup("ready");
-            break; 
-        case 3:
-	    real_status = 2;
-	    char_real_status = strdup("pin-locked");
-            break; 
-        case 4:
-	    real_status = 3;
-	    char_real_status = strdup("puk-locked");
-            break; 	    
-        case 5:
-	    real_status = 4;
-	    char_real_status = strdup("subscription");
-            break; 
-    default:
-            real_status = 0;
-	    char_real_status = strdup("uknown");
-            break;
-    }
-    
-    
-// RIL_CardState
-     if (*status != 0) {
-	     p.writeInt32(1);
-     } else {
-	     p.writeInt32(0);
-	     char_real_status = strdup("absent");
-     }     
-// RIL_PinState (only for USIM/CSIM)
-     p.writeInt32(0);
-// gsm_umts_subscription_app_index
-    p.writeInt32(0);
-// cdma_subscription_app_index
-    p.writeInt32(0);
-// num_applications
-    p.writeInt32(1);
-// RIL_AppType : SIM=1
-    p.writeInt32(1);
-// RIL_AppState
-    p.writeInt32(real_status);
-// RIL_PersoSubstate
-    p.writeInt32(0);
-// Others
-    writeStringToParcel(p, "null");
-    writeStringToParcel(p, "null");
-    p.writeInt32(0);
-// Pin1State
-    p.writeInt32(0);
-// Pin2State
-    p.writeInt32(0);
+    RIL_CardStatus *p_cur = NULL;//((RIL_CardStatus *) response);
+    getCardStatus(&p_cur, (SIM_Status_15)sim_status);
 
+    p.writeInt32(p_cur->card_state);
+    p.writeInt32(p_cur->universal_pin_state);
+    p.writeInt32(p_cur->gsm_umts_subscription_app_index);
+    p.writeInt32(p_cur->cdma_subscription_app_index);
+    p.writeInt32(p_cur->num_applications);
 
     startResponse;
-    appendPrintBuf("state=%s", char_real_status);
+    for (i = 0; i < p_cur->num_applications; i++) {
+        p.writeInt32(p_cur->applications[i].app_type);
+        p.writeInt32(p_cur->applications[i].app_state);
+        p.writeInt32(p_cur->applications[i].perso_substate);
+        writeStringToParcel(p, (const char*)(p_cur->applications[i].aid_ptr));
+        writeStringToParcel(p, (const char*)
+                                      (p_cur->applications[i].app_label_ptr));
+        p.writeInt32(p_cur->applications[i].pin1_replaced);
+        p.writeInt32(p_cur->applications[i].pin1);
+        p.writeInt32(p_cur->applications[i].pin2);
+        appendPrintBuf("%s[app_type=%d,app_state=%d,perso_substate=%d,\
+                aid_ptr=%s,app_label_ptr=%s,pin1_replaced=%d,pin1=%d,pin2=%d],",
+                printBuf,
+                p_cur->applications[i].app_type,
+                p_cur->applications[i].app_state,
+                p_cur->applications[i].perso_substate,
+                p_cur->applications[i].aid_ptr,
+                p_cur->applications[i].app_label_ptr,
+                p_cur->applications[i].pin1_replaced,
+                p_cur->applications[i].pin1,
+                p_cur->applications[i].pin2);
+    }
     closeResponse;
+
+    if(p_cur != NULL)
+    	freeCardStatus(p_cur);
 
     return 0;
 }
