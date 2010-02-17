@@ -92,7 +92,7 @@ namespace android {
 #define PRINTBUF_SIZE 8096
 
 // Enable RILC log
-#define RILC_LOG 0
+#define RILC_LOG 1
 
 #if RILC_LOG
     #define startRequest           sprintf(printBuf, "(")
@@ -392,23 +392,61 @@ dispatchString (Parcel& p, RequestInfo *pRI) {
     size_t datalen;
     size_t stringlen;
     char *string8 = NULL;
+    char **pStrings;
+    int32_t countStrings;
 
-    string8 = strdupReadString(p);
+// drakaz
+    if (pRI->pCI->requestNumber == RIL_REQUEST_SET_NETWORK_SELECTION_MANUAL) {
+      
+	startRequest;
 
-    startRequest;
-    appendPrintBuf("%s%s", printBuf, string8);
-    closeRequest;
-    printRequest(pRI->token, pRI->pCI->requestNumber);
+        countStrings = 2;
+        datalen = sizeof(char *) * countStrings;
+        pStrings = (char **)alloca(datalen);
+	pStrings[0] = strdupReadString(p);
+        pStrings[1] = strdup("0");
 
-    s_callbacks.onRequest(pRI->pCI->requestNumber, string8,
+    	appendPrintBuf("%s%s,", printBuf, pStrings[0]);
+    	appendPrintBuf("%s%s", printBuf, pStrings[1]);
+        
+	closeRequest;
+
+	printRequest(pRI->token, pRI->pCI->requestNumber);
+
+    	s_callbacks.onRequest(pRI->pCI->requestNumber, pStrings, datalen, pRI);  
+
+   	if (pStrings != NULL) {
+  	        for (int i = 0 ; i < 2 ; i++) {
+			#ifdef MEMSET_FREED
+			memsetString (pStrings[i]);
+			#endif
+			free(pStrings[i]);
+	        }
+
+	        #ifdef MEMSET_FREED
+		memset(pStrings, 0, datalen);
+		#endif
+ 	}
+	return;
+
+    } else {
+   	string8 = strdupReadString(p);
+	startRequest;
+        appendPrintBuf("%s%s", printBuf, string8);
+        closeRequest;
+ 	printRequest(pRI->token, pRI->pCI->requestNumber);
+
+    	s_callbacks.onRequest(pRI->pCI->requestNumber, string8,
                        sizeof(char *), pRI);
 
-#ifdef MEMSET_FREED
-    memsetString(string8);
-#endif
+	#ifdef MEMSET_FREED
+  	  memsetString(string8);
+	#endif
 
-    free(string8);
-    return;
+    	free(string8);
+    	return;	
+    }
+    
 invalid:
     invalidCommandBlock(pRI);
     return;
@@ -1318,6 +1356,7 @@ static int responseString(Parcel &p, void *response, size_t responselen) {
 }
 
 static int responseVoid(Parcel &p, void *response, size_t responselen) {
+		
     startResponse;
     removeLastChar;
     return 0;
