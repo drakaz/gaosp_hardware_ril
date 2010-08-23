@@ -1457,13 +1457,15 @@ static int responseDataCallList(Parcel &p, void *response, size_t responselen)
     int i;
     for (i = 0; i < num; i++) {
         p.writeInt32(p_cur[i].cid);
-        p.writeInt32(p_cur[i].active);
+	int active = p_cur[i].active;
+	if(active==1) active = 2;
+        p.writeInt32(active);
         writeStringToParcel(p, p_cur[i].type);
         writeStringToParcel(p, p_cur[i].apn);
         writeStringToParcel(p, p_cur[i].address);
         appendPrintBuf("%s[cid=%d,%s,%s,%s,%s],", printBuf,
             p_cur[i].cid,
-            (p_cur[i].active==0)?"down":"up",
+            (active==0)?"down":"up",
             (char*)p_cur[i].type,
             (char*)p_cur[i].apn,
             (char*)p_cur[i].address);
@@ -2683,18 +2685,24 @@ RIL_onRequestComplete(RIL_Token t, RIL_Errno e, void *response, size_t responsel
         p.writeInt32 (pRI->token);
         errorOffset = p.dataPosition();
 
-        p.writeInt32 (e);
+        if(pRI->pCI->requestNumber == RIL_REQUEST_GET_NEIGHBORING_CELL_IDS && e!=RIL_E_SUCCESS) {
+		e = RIL_E_SUCCESS;
+		p.writeInt32 (e);  //error code = success 
+		p.writeInt32 (0);  // cell count = 0
+	} else {
+        	p.writeInt32 (e);
 
-        if (response != NULL) {
-            // there is a response payload, no matter success or not.
-            ret = pRI->pCI->responseFunction(p, response, responselen);
+        	if (response != NULL) {
+            		// there is a response payload, no matter success or not.
+            		ret = pRI->pCI->responseFunction(p, response, responselen);
 
-            /* if an error occurred, rewind and mark it */
-            if (ret != 0) {
-                p.setDataPosition(errorOffset);
-                p.writeInt32 (ret);
-            }
-        }
+            		/* if an error occurred, rewind and mark it */
+            		if (ret != 0) {
+                		p.setDataPosition(errorOffset);
+                		p.writeInt32 (ret);
+            		}
+        	}
+	}
 
         if (e != RIL_E_SUCCESS) {
             appendPrintBuf("%s fails by %s", printBuf, failCauseToString(e));
