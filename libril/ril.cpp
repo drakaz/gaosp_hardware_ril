@@ -209,8 +209,6 @@ static void dispatchRilCdmaSmsWriteArgs(Parcel &p, RequestInfo *pRI);
 static int responseInts(Parcel &p, void *response, size_t responselen);
 static int responseStrings(Parcel &p, void *response, size_t responselen);
 static int responseString(Parcel &p, void *response, size_t responselen);
-static int responseIMEI(Parcel &p, void *response, size_t responselen);
-static int responseIMEISV(Parcel &p, void *response, size_t responselen);
 static int responseVoid(Parcel &p, void *response, size_t responselen);
 static int responseCallList(Parcel &p, void *response, size_t responselen);
 static int responseSMS(Parcel &p, void *response, size_t responselen);
@@ -390,7 +388,7 @@ dispatchString (Parcel& p, RequestInfo *pRI) {
     char *string8 = NULL;
 
     string8 = strdupReadString(p);
-    
+
     startRequest;
     appendPrintBuf("%s%s", printBuf, string8);
     closeRequest;
@@ -1328,48 +1326,6 @@ static int responseStrings(Parcel &p, void *response, size_t responselen) {
 static int responseString(Parcel &p, void *response, size_t responselen) {
     /* one string only */
     startResponse;
-    appendPrintBuf("%s%s", printBuf, (char*)response);
-    closeResponse;
-
-    writeStringToParcel(p, (const char *)response);
-
-    return 0;
-}
-
-static int responseIMEI(Parcel &p, void *response, size_t responselen) {
-    /* one string only */
-    startResponse;
-    char *responseNew = (char *) malloc(strlen((char *)response));
-    
-    LOGE("IMEI : %s", (char *)response);
-    LOGE("IMEISIZE : %i", strlen((char *)response));
-	if (strlen((char *)response) > 15) {
-		strncpy(responseNew, (char *)response, 15);
-		responseNew[15]='\0';
-	} else {
-		strcpy(responseNew, (char *)response);
-	}
-	LOGE("MODIMEI : %s", responseNew);
-    
-    appendPrintBuf("%s%s", printBuf, responseNew);
-    closeResponse;
-
-    writeStringToParcel(p, responseNew);
-    free(responseNew);
-
-    return 0;
-}
-
-static int responseIMEISV(Parcel &p, void *response, size_t responselen) {
-    /* one string only */
-    startResponse;
-    
-    LOGE("IMEISV : %s", (char*)response);
-	if (strlen((char *)response) == 0) {
-		strcpy((char*)response, "01");	
-	}
-	LOGE("MODIMEISV : %s", (char*)response);
-    
     appendPrintBuf("%s%s", printBuf, (char*)response);
     closeResponse;
 
