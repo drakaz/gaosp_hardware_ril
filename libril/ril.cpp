@@ -86,7 +86,7 @@ namespace android {
 #define PRINTBUF_SIZE 8096
 
 // Enable RILC log
-#define RILC_LOG 0
+#define RILC_LOG 1
 
 #if RILC_LOG
     #define startRequest           sprintf(printBuf, "(")
@@ -2789,8 +2789,10 @@ void RIL_onUnsolicitedResponse(int unsolResponse, void *data,
 
     unsolResponseIndex = unsolResponse - RIL_UNSOL_RESPONSE_BASE;
 
-    if ((unsolResponseIndex < 0)
-        || (unsolResponseIndex >= (int32_t)NUM_ELEMS(s_unsolResponses))) {
+    //aleksm
+    if (((unsolResponseIndex < 0)
+        || (unsolResponseIndex >= (int32_t)NUM_ELEMS(s_unsolResponses)))
+        && unsolResponse != RIL_UNSOL_STK_SEND_SMS_RESULT) {
         LOGE("unsupported unsolicited response code %d", unsolResponse);
         return;
     }
@@ -2798,7 +2800,11 @@ void RIL_onUnsolicitedResponse(int unsolResponse, void *data,
     // Grab a wake lock if needed for this reponse,
     // as we exit we'll either release it immediately
     // or set a timer to release it later.
-    switch (s_unsolResponses[unsolResponseIndex].wakeType) {
+    
+    //aleksm
+    int32_t iLength = (int32_t)NUM_ELEMS(s_unsolResponses);
+    
+    switch (s_unsolResponses[unsolResponseIndex >= iLength?(iLength-1):unsolResponseIndex].wakeType) {
         case WAKE_PARTIAL:
             grabPartialWakeLock();
             shouldScheduleTimeout = true;
@@ -2826,7 +2832,8 @@ void RIL_onUnsolicitedResponse(int unsolResponse, void *data,
     p.writeInt32 (RESPONSE_UNSOLICITED);
     p.writeInt32 (unsolResponse);
 
-    ret = s_unsolResponses[unsolResponseIndex]
+    //AMI
+    ret = s_unsolResponses[unsolResponseIndex >= iLength?(iLength-1):unsolResponseIndex]
                 .responseFunction(p, data, datalen);
     if (ret != 0) {
         // Problem with the response. Don't continue;
@@ -3111,6 +3118,7 @@ requestToString(int request) {
         case RIL_UNSOL_STK_SESSION_END: return "UNSOL_STK_SESSION_END";
         case RIL_UNSOL_STK_PROACTIVE_COMMAND: return "UNSOL_STK_PROACTIVE_COMMAND";
         case RIL_UNSOL_STK_EVENT_NOTIFY: return "UNSOL_STK_EVENT_NOTIFY";
+        case RIL_UNSOL_STK_SEND_SMS_RESULT: return "UNSOL_STK_SEND_SMS_RESULT";
         case RIL_UNSOL_STK_CALL_SETUP: return "UNSOL_STK_CALL_SETUP";
         case RIL_UNSOL_SIM_SMS_STORAGE_FULL: return "UNSOL_SIM_SMS_STORAGE_FUL";
         case RIL_UNSOL_SIM_REFRESH: return "UNSOL_SIM_REFRESH";
